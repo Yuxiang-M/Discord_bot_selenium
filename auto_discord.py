@@ -7,8 +7,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 import time
 import random
+from get_gpt_reply import *
 
-chrome_path='./chromedriver.exe'
+chrome_path='C:\Program Files\Google\Chrome\Application\chromedriver.exe'
 
 user_agent=['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.48',
 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8; en-us) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50',
@@ -19,6 +20,10 @@ user_agent=['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML
 
 mode={'cat':'meow:smiley_cat:','peace':':innocent:','kiss':':kissing_smiling_eyes:','cool':':sunglasses:'}
 
+
+with open ('./auto_bot_discord/gpt_key.txt','r') as f:
+    key = f.read()
+
 chrome_option = webdriver.ChromeOptions()
 services = service.Service(executable_path=chrome_path)
 # chrome_option.add_argument("--start-maximized")
@@ -28,10 +33,11 @@ chrome_option.add_argument('user-agent='+user_agent[random.randint(0,3)])
 driver = webdriver.Chrome(service=services, options=chrome_option)
 driver.maximize_window()
 
-def log_in_discord(url):
+
+def log_in_discord(url,log_in):
     driver.get(url=url)
     print('Logging in')
-    WebDriverWait(driver=driver,timeout=10,poll_frequency=1).until(EC.element_to_be_clickable((By.XPATH,'//button[@class="marginBottom8-emkd0_ button-1cRKG6 button-ejjZWC lookFilled-1H2Jvj colorBrand-2M3O3N sizeLarge-2xP3-w fullWidth-3M-YBR grow-2T4nbg"]')))
+    WebDriverWait(driver=driver,timeout=20,poll_frequency=1).until(EC.element_to_be_clickable((By.XPATH,'//button[@class="marginBottom8-emkd0_ button-1cRKG6 button-ejjZWC lookFilled-1H2Jvj colorBrand-2M3O3N sizeLarge-2xP3-w fullWidth-3M-YBR grow-2T4nbg"]')))
     driver.find_element(By.XPATH,'//input[@class="inputDefault-Ciwd-S input-3O04eu inputField-2RZxdl"]').send_keys(log_in[0])
     driver.find_element(By.XPATH,'//input[@class="inputDefault-Ciwd-S input-3O04eu"]').click()
     time.sleep(2)
@@ -78,10 +84,9 @@ def reply_in_discord(your_name):
                 # when someone @you or @group including you
                 for each in driver.find_elements(By.XPATH, '//div[contains(@class,"mentioned-Tre-dv")]'):
                     receive_text = each.find_element(By.XPATH,'./div[1]/div').text
-                    print(receive_text)
+                    answer = get_gpt_reply(api_key=key,query=receive_text)
                     replyto_name = get_replyto_name('@',your_name,element=each)
-                    message = reply_message_generate(1)
-                    reply(replyto_name=replyto_name,message=message)
+                    reply(replyto_name=replyto_name,message=answer)
 
 def locate_in_guild_or_channel(n,element):
     if n == 'guilds':
@@ -161,7 +166,7 @@ if __name__ == '__main__':
     log_in=['account','password']
     # or read in txt
     if log_in[0] == 'account':
-        with open ('./discord_account.txt','r') as f:
+        with open ('./auto_bot_discord/discord_account.txt','r') as f:
             log_in[0] = f.readline().strip('\n')
             log_in[1] = f.readline().strip('\n')
     # your name in one server
@@ -170,5 +175,5 @@ if __name__ == '__main__':
     # change url_list if blocked, provide 3 in case, can add more
     url_list = ['https://discord.com/app','https://discord.com/login','https://discord.com/channels/@me']
 
-    log_in_discord(url=url_list[0])
+    log_in_discord(url=url_list[0],log_in=log_in)
     reply_in_discord(your_name=your_name)
