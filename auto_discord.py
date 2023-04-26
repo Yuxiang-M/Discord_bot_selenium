@@ -9,7 +9,7 @@ import time
 import random
 from get_gpt_reply import *
 
-chrome_path='C:\Program Files\Google\Chrome\Application\chromedriver.exe'
+chrome_path='./chromedriver.exe'
 
 user_agent=['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36 Edg/112.0.1722.48',
 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_8; en-us) AppleWebKit/534.50 (KHTML, like Gecko) Version/5.1 Safari/534.50',
