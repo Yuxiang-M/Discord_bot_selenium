@@ -34,10 +34,12 @@ driver = webdriver.Chrome(service=services, options=chrome_option)
 driver.maximize_window()
 
 
-def log_in_discord(url,log_in):
-    driver.get(url=url)
-    print('Logging in')
+def log_in_discord(url_list,log_in):
+    # change url_list if blocked, provide 3 in case, can add more
+    driver.get(url=url_list[0])
     WebDriverWait(driver=driver,timeout=30,poll_frequency=1).until(EC.element_to_be_clickable((By.XPATH,'//button[@class="marginBottom8-emkd0_ button-1cRKG6 button-ejjZWC lookFilled-1H2Jvj colorBrand-2M3O3N sizeLarge-2xP3-w fullWidth-3M-YBR grow-2T4nbg"]')))
+    
+    print('Logging in...')
     driver.find_element(By.XPATH,'//input[@class="inputDefault-Ciwd-S input-3O04eu inputField-2RZxdl"]').send_keys(log_in[0])
     driver.find_element(By.XPATH,'//input[@class="inputDefault-Ciwd-S input-3O04eu"]').click()
     time.sleep(2)
@@ -59,34 +61,21 @@ def reply_message_generate(n):
 
 def reply_in_discord(your_name):
     while True:
-        # # scroll to one channel when someone @/reply you or including you
-        # button = WebDriverWait(driver=driver,timeout=10000,poll_frequency=3).until(EC.presence_of_element_located((By.XPATH,'//div[@class="bar-wDIGjg mentionsBar-DpLHCy"]')))
-        # button.click()
-        
-        # when you are mentioned in multiple locations
-        print('listening:')
+        print('listening...')
         # locate one guild mention in <div>  each iteration
         # only need the first element because guild visit from top to bottom
         element = WebDriverWait(driver=driver,timeout=10000,poll_frequency=3).until(EC.presence_of_element_located((By.XPATH,'//div[contains(@aria-label,"提及")]')))
         # redirect to guild
         # redirect needs relocate element
         guild_id = locate_in_guild_or_channel('guilds',element=element)
-        # locate all channel mentioned in <a>
-        # reply in each channel
+        # iteration reply in one guild
         Flag = True
-        while Flag:
-            # guild_id ensure not to repeat in one guild
-            element = driver.find_element(By.XPATH,'//div[contains(@data-list-item-id,"%s")]' %guild_id)
-            if '提及' in element.get_attribute('aria-label'):
-                Flag = True
-            else:
-                Flag = False
+        while Flag:           
             # in case can't locate channel at bottom
             try:
-                # locate one each time in iteration
+                # locate one channel in each iteration mentioned in <a>
                 channel_element = driver.find_element(By.XPATH,'//a[contains(@aria-label,"提及")]')
                 locate_in_guild_or_channel('channels',element=channel_element)
-
 
                 # locate all reply message        
                 for each in driver.find_elements(By.XPATH,'//div[contains(@class,"hasReply")]'):
@@ -99,6 +88,8 @@ def reply_in_discord(your_name):
                     receive_text = each.find_element(By.XPATH,'./div[1]/div').text
                     # only @? no reply
                     if len(receive_text):
+                        # strip @your_name in receive text
+                        receive_text = receive_text.replace('@'+your_name,'')
                         answer = get_gpt_reply(api_key=key,query=receive_text)
                         replyto_name = get_replyto_name('@',your_name,element=each)
                         reply(replyto_name=replyto_name,message=answer)
@@ -106,20 +97,30 @@ def reply_in_discord(your_name):
                 try:
                     # mark all as already read after reply
                     driver.find_element(By.XPATH,'//button[@class="barButtonAlt-TQoCdZ barButtonBase-Sk2mdB"]').click()
-                    break
+                    print('all message already read...')
                 except:
-                    # quite loop for replying in one channel
-                    break
+                    print('all message already read and replied... hmmm maybe')
+
             
             # if can't locate channel due to channel at bottom
             # scroll                    
             except:
                 # click button to scroll
-                driver.find_element(By.XPATH,'//div[@class="bar-wDIGjg mentionsBar-DpLHCy"]').click()
-                time.sleep(2)
-                # # scroll_element = document.getElementByClassName("scroller-1ox3I2 thin-RnSY0a scrollerBase-1Pkza4 fade-27X6bG customTheme-3QAYZq")
-                # jscode = "document.getElementsByClassName('scroller-1ox3I2 thin-RnSY0a scrollerBase-1Pkza4 fade-27X6bG customTheme-3QAYZq')[0].scrollBy(0,200)"
-                # driver.execute_script(jscode)
+                try:
+                    driver.find_element(By.XPATH,'//div[@class="bar-wDIGjg mentionsBar-DpLHCy"]').click()
+                    time.sleep(1)
+                except:
+                    # if in your own guild
+                    driver.find_element(By.XPATH,'//div[@class="bar-2eAyLE unreadBar-elBRZx mention-3XBnnZ active-334r9u"]').click()
+                    time.sleep(1)
+            
+            # guild_id ensure only repeat when mentioned guild exist
+            element = driver.find_element(By.XPATH,'//div[contains(@data-list-item-id,"%s")]' % guild_id)
+            if '提及' in element.get_attribute('aria-label'):
+                Flag = True
+            else:
+                Flag = False
+
 
 
 def locate_in_guild_or_channel(n,element):
@@ -127,10 +128,8 @@ def locate_in_guild_or_channel(n,element):
         # find guild_url
         guild_id = element.get_attribute("data-list-item-id")[12:]
         guild_name = element.get_attribute('aria-label')
-        print('mentioned at %s, navigating to it, please wait' %guild_name)
-        # driver.current_url may be different
-        # guild_url = 'https://discord.com/channels/' + guild_id
-        # driver.get(url=guild_url)
+        print('mentioned at %s, navigating to it, please wait...' %guild_name)
+        # just click to navigate
         element.click()
         time.sleep(random.randrange(5,10))
         return guild_id
@@ -139,12 +138,13 @@ def locate_in_guild_or_channel(n,element):
         # find channel_url
         channel_id = element.get_attribute('data-list-item-id')[11:]
         # guild_url + channel_id
-        index = driver.current_url.rfind('/')
-        channel_url = driver.current_url[:index] + '/' + channel_id
-        print(channel_url)
+        # index = driver.current_url.rfind('/')
+        # channel_url = driver.current_url[:index] + '/' + channel_id
+        # driver.get(url=channel_url)
         channel_name = element.get_attribute('aria-label')
-        driver.get(url=channel_url)
-        print('Navigating to channel %s, please wait' %channel_name)
+        # just click to navigate
+        element.click()
+        print('Navigating to channel %s, please wait...' %channel_name)
         time.sleep(random.randrange(5,10))
         return channel_id
         # else:
@@ -191,9 +191,9 @@ def get_replyto_name(n,your_name,element):
     sleep_time: sleep for each reply
 '''
 def reply(replyto_name,message,sleep=True):
-    # had to do in 4 steps otherwise cannot @someone successfully
     # not None 
     if replyto_name and message:
+        # had to do in 4 steps otherwise cannot @someone successfully
         driver.find_element(By.XPATH,'//span[@class="emptyText-1o0WH_"]').send_keys(replyto_name)
         driver.find_element(By.XPATH,'//span[@data-slate-string="true"]').send_keys(Keys.TAB)
         driver.find_element(By.XPATH,'//span[@data-slate-string="true"]').send_keys(message)
@@ -219,5 +219,5 @@ if __name__ == '__main__':
     # change url_list if blocked, provide 3 in case, can add more
     url_list = ['https://discord.com/app','https://discord.com/login','https://discord.com/channels/@me']
 
-    log_in_discord(url=url_list[2],log_in=log_in)
+    log_in_discord(url_list=url_list,log_in=log_in)
     reply_in_discord(your_name=your_name)
